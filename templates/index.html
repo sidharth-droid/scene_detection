@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ONNX Vision Transformer Classifier</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .webcam-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+        .webcam-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            font-size: 1.2rem;
+            z-index: 10;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .dropzone {
+            border: 2px dashed #3498db;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .dropzone:hover {
+            background-color: #f8f9fa;
+        }
+        .prediction-badge {
+            background-color: #10B981;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 9999px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .video-frame {
+            margin: 10px 0;
+            position: relative;
+        }
+        .video-frame img {
+            max-width: 100%;
+            border-radius: 5px;
+        }
+        .video-frame .prediction {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-indigo-800 mb-2">Scene Recognition</h1>
+            <p class="text-gray-600">Upload images or videos, or use your webcam for real-time classification</p>
+        </header>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <div class="flex border-b mb-4">
+                <button id="tab-image" class="tab-btn px-4 py-2 font-medium text-gray-600 hover:text-indigo-600 border-b-2 border-transparent hover:border-indigo-600 active">
+                    <i class="fas fa-image mr-2"></i>Image
+                </button>
+                <button id="tab-video" class="tab-btn px-4 py-2 font-medium text-gray-600 hover:text-indigo-600 border-b-2 border-transparent hover:border-indigo-600">
+                    <i class="fas fa-video mr-2"></i>Video
+                </button>
+                <button id="tab-webcam" class="tab-btn px-4 py-2 font-medium text-gray-600 hover:text-indigo-600 border-b-2 border-transparent hover:border-indigo-600">
+                    <i class="fas fa-camera mr-2"></i>Webcam
+                </button>
+            </div>
+
+            <!-- Image Tab -->
+            <div id="content-image" class="tab-content active">
+                <div class="dropzone" id="image-dropzone">
+                    <input type="file" id="image-upload" accept="image/*" hidden>
+                    <i class="fas fa-cloud-upload-alt text-4xl text-indigo-500 mb-3"></i>
+                    <h3 class="text-lg font-medium mb-2">Drag and drop an image here</h3>
+                    <p class="text-gray-500 mb-2">or</p>
+                    <button class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition" id="image-upload-btn">
+                        Select Image
+                    </button>
+                </div>
+                
+                <div id="image-result" class="mt-6 hidden">
+                    <h3 class="text-xl font-semibold mb-4">Classification Result</h3>
+                    <div class="flex flex-col md:flex-row items-start gap-6">
+                        <div class="md:w-1/2">
+                            <img id="result-image" src="" alt="Classified Image" class="w-full rounded-lg shadow-md">
+                        </div>
+                        <div class="md:w-1/2">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="text-lg font-medium mb-2">Prediction:</h4>
+                                <div id="image-prediction" class="prediction-badge"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="image-loading" class="text-center hidden">
+                    <div class="loader"></div>
+                    <p class="text-gray-600">Processing image...</p>
+                </div>
+                
+                <div id="image-error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mt-4 hidden" role="alert">
+                    <p id="image-error-message"></p>
+                </div>
+            </div>
+
+            <!-- Video Tab -->
+            <div id="content-video" class="tab-content">
+                <div class="dropzone" id="video-dropzone">
+                    <input type="file" id="video-upload" accept="video/*" hidden>
+                    <i class="fas fa-film text-4xl text-indigo-500 mb-3"></i>
+                    <h3 class="text-lg font-medium mb-2">Drag and drop a video here</h3>
+                    <p class="text-gray-500 mb-2">or</p>
+                    <button class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition" id="video-upload-btn">
+                        Select Video
+                    </button>
+                </div>
+                
+                <div id="video-result" class="mt-6 hidden">
+                    <h3 class="text-xl font-semibold mb-4">Video Classification Results</h3>
+                    <p class="text-gray-600 mb-4">Showing classification results for first 10 frames of the video:</p>
+                    <div id="video-frames" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+                
+                <div id="video-loading" class="text-center hidden">
+                    <div class="loader"></div>
+                    <p class="text-gray-600">Processing video (this may take a moment)...</p>
+                </div>
+                
+                <div id="video-error" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mt-4 hidden" role="alert">
+                    <p id="video-error-message"></p>
+                </div>
+            </div>
+
+            <!-- Webcam Tab -->
+            <div id="content-webcam" class="tab-content">
+                <div class="text-center mb-4">
+                    <button id="start-webcam" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">
+                        <i class="fas fa-video mr-2"></i>Start Webcam
+                    </button>
+                    <button id="stop-webcam" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition hidden">
+                        <i class="fas fa-stop-circle mr-2"></i>Stop Webcam
+                    </button>
+                </div>
+                
+                <div class="webcam-container">
+                    <div class="webcam-overlay hidden" id="webcam-prediction"></div>
+                    <video id="webcam" autoplay playsinline class="w-full rounded-lg shadow-md"></video>
+                    <canvas id="webcam-canvas" class="hidden"></canvas>
+                </div>
+                
+                <div id="webcam-message" class="text-center mt-4 text-gray-600">
+                    Click "Start Webcam" to begin real-time classification
+                </div>
+            </div>
+        </div>
+        
+        <footer class="text-center text-gray-500 text-sm">
+            <p>Final Semester BTech Project</p>
+        </footer>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons and contents
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                
+                // Add active class to the clicked button
+                button.classList.add('active');
+                
+                // Get the content ID from the button ID
+                const contentId = 'content-' + button.id.split('-')[1];
+                document.getElementById(contentId).classList.add('active');
+                
+                // If switching to webcam tab and webcam is already started
+                if (contentId === 'content-webcam' && webcamRunning) {
+                    startWebcamProcessing();
+                } else {
+                    stopWebcamProcessing();
+                }
+            });
+        });
+
+        // Image upload functionality
+        const imageUploadBtn = document.getElementById('image-upload-btn');
+        const imageUpload = document.getElementById('image-upload');
+        const imageDropzone = document.getElementById('image-dropzone');
+        
+        imageUploadBtn.addEventListener('click', () => {
+            imageUpload.click();
+        });
+        
+        imageUpload.addEventListener('change', handleImageUpload);
+        
+        // Drag and drop for images
+        imageDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            imageDropzone.classList.add('bg-gray-100');
+        });
+        
+        imageDropzone.addEventListener('dragleave', () => {
+            imageDropzone.classList.remove('bg-gray-100');
+        });
+        
+        imageDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            imageDropzone.classList.remove('bg-gray-100');
+            
+            if (e.dataTransfer.files.length) {
+                imageUpload.files = e.dataTransfer.files;
+                handleImageUpload();
+            }
+        });
+        
+        function handleImageUpload() {
+            if (!imageUpload.files.length) return;
+            
+            const file = imageUpload.files[0];
+            if (!file.type.match('image.*')) {
+                showImageError('Please select an image file');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('image-loading').classList.remove('hidden');
+            document.getElementById('image-result').classList.add('hidden');
+            document.getElementById('image-error').classList.add('hidden');
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/upload_image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('image-loading').classList.add('hidden');
+                
+                if (data.error) {
+                    showImageError(data.error);
+                    return;
+                }
+                
+                // Display result
+                document.getElementById('result-image').src = 'data:image/jpeg;base64,' + data.image;
+                document.getElementById('image-prediction').textContent = data.prediction;
+                document.getElementById('image-result').classList.remove('hidden');
+            })
+            .catch(error => {
+                document.getElementById('image-loading').classList.add('hidden');
+                showImageError('Error processing image: ' + error.message);
+            });
+        }
+        
+        function showImageError(message) {
+            const errorDiv = document.getElementById('image-error');
+            const errorMessage = document.getElementById('image-error-message');
+            errorMessage.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        // Video upload functionality
+        const videoUploadBtn = document.getElementById('video-upload-btn');
+        const videoUpload = document.getElementById('video-upload');
+        const videoDropzone = document.getElementById('video-dropzone');
+        
+        videoUploadBtn.addEventListener('click', () => {
+            videoUpload.click();
+        });
+        
+        videoUpload.addEventListener('change', handleVideoUpload);
+        
+        // Drag and drop for videos
+        videoDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            videoDropzone.classList.add('bg-gray-100');
+        });
+        
+        videoDropzone.addEventListener('dragleave', () => {
+            videoDropzone.classList.remove('bg-gray-100');
+        });
+        
+        videoDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            videoDropzone.classList.remove('bg-gray-100');
+            
+            if (e.dataTransfer.files.length) {
+                videoUpload.files = e.dataTransfer.files;
+                handleVideoUpload();
+            }
+        });
+        
+        function handleVideoUpload() {
+            if (!videoUpload.files.length) return;
+            
+            const file = videoUpload.files[0];
+            if (!file.type.match('video.*')) {
+                showVideoError('Please select a video file');
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('video-loading').classList.remove('hidden');
+            document.getElementById('video-result').classList.add('hidden');
+            document.getElementById('video-error').classList.add('hidden');
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/upload_video', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('video-loading').classList.add('hidden');
+                
+                if (data.error) {
+                    showVideoError(data.error);
+                    return;
+                }
+                
+                // Display result
+                const framesContainer = document.getElementById('video-frames');
+                framesContainer.innerHTML = '';
+                
+                data.frames.forEach((frame, i) => {
+                    const frameDiv = document.createElement('div');
+                    frameDiv.className = 'video-frame';
+                    
+                    const img = document.createElement('img');
+                    img.src = 'data:image/jpeg;base64,' + frame;
+                    frameDiv.appendChild(img);
+                    
+                    const prediction = document.createElement('div');
+                    prediction.className = 'prediction';
+                    prediction.textContent = data.predictions[i];
+                    frameDiv.appendChild(prediction);
+                    
+                    framesContainer.appendChild(frameDiv);
+                });
+                
+                document.getElementById('video-result').classList.remove('hidden');
+            })
+            .catch(error => {
+                document.getElementById('video-loading').classList.add('hidden');
+                showVideoError('Error processing video: ' + error.message);
+            });
+        }
+        
+        function showVideoError(message) {
+            const errorDiv = document.getElementById('video-error');
+            const errorMessage = document.getElementById('video-error-message');
+            errorMessage.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        // Webcam functionality
+        const startWebcamBtn = document.getElementById('start-webcam');
+        const stopWebcamBtn = document.getElementById('stop-webcam');
+        const webcamVideo = document.getElementById('webcam');
+        const webcamCanvas = document.getElementById('webcam-canvas');
+        const webcamMessage = document.getElementById('webcam-message');
+        const webcamPrediction = document.getElementById('webcam-prediction');
+        
+        let webcamStream = null;
+        let webcamRunning = false;
+        let webcamInterval = null;
+        
+        startWebcamBtn.addEventListener('click', async () => {
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480 } 
+                });
+                
+                webcamVideo.srcObject = webcamStream;
+                webcamRunning = true;
+                
+                startWebcamBtn.classList.add('hidden');
+                stopWebcamBtn.classList.remove('hidden');
+                webcamMessage.textContent = 'Webcam is active. Processing frames...';
+                
+                // Start processing frames
+                startWebcamProcessing();
+                
+            } catch (error) {
+                webcamMessage.textContent = 'Error accessing webcam: ' + error.message;
+                console.error('Error accessing webcam:', error);
+            }
+        });
+        
+        stopWebcamBtn.addEventListener('click', () => {
+            stopWebcamProcessing();
+            
+            if (webcamStream) {
+                webcamStream.getTracks().forEach(track => track.stop());
+                webcamStream = null;
+            }
+            
+            webcamVideo.srcObject = null;
+            webcamRunning = false;
+            
+            startWebcamBtn.classList.remove('hidden');
+            stopWebcamBtn.classList.add('hidden');
+            webcamPrediction.classList.add('hidden');
+            webcamMessage.textContent = 'Click "Start Webcam" to begin real-time classification';
+        });
+        
+        function startWebcamProcessing() {
+            if (!webcamRunning) return;
+            
+            // Clear existing interval if any
+            stopWebcamProcessing();
+            
+            // Process frames every 500ms
+            webcamInterval = setInterval(() => {
+                captureAndProcessFrame();
+            }, 500);
+        }
+        
+        function stopWebcamProcessing() {
+            if (webcamInterval) {
+                clearInterval(webcamInterval);
+                webcamInterval = null;
+            }
+        }
+        
+        function captureAndProcessFrame() {
+            if (!webcamRunning) return;
+            
+            const context = webcamCanvas.getContext('2d');
+            webcamCanvas.width = webcamVideo.videoWidth;
+            webcamCanvas.height = webcamVideo.videoHeight;
+            
+            // Draw the video frame to the canvas
+            context.drawImage(webcamVideo, 0, 0, webcamCanvas.width, webcamCanvas.height);
+            
+            // Get the image data as base64
+            const imageData = webcamCanvas.toDataURL('image/jpeg');
+            
+            // Send to the server for processing
+            fetch('/process_webcam', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: imageData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error processing webcam frame:', data.error);
+                    return;
+                }
+                
+                // Display prediction
+                webcamPrediction.textContent = data.prediction;
+                webcamPrediction.classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Error sending webcam frame:', error);
+            });
+        }
+    </script>
+</body>
+</html>
