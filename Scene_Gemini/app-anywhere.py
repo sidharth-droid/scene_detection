@@ -9,10 +9,21 @@ from flask import send_from_directory
 # load_dotenv()  # Load environment variables from .env file
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+
+# Configuration for PythonAnywhere
+UPLOAD_FOLDER = os.path.join(os.path.expanduser('~'), 'uploads')
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 app.static_folder = 'static'
 app.static_url_path = '/static'
+
+# Ensure upload directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+print(f"Upload directory set to: {UPLOAD_FOLDER}")
+print(f"Directory exists: {os.path.exists(UPLOAD_FOLDER)}")
+print(f"Directory writable: {os.access(UPLOAD_FOLDER, os.W_OK)}")
 
 # Configure Gemini API
 genai.configure(api_key='AIzaSyBN_F4aGxokneuCJVK4p8jmZBNq83Iq1NM')
@@ -67,11 +78,19 @@ def upload_file():
         return jsonify({'error': 'No selected file'}), 400
     
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
         try:
+            # Read file content into memory
+            file_content = file.read()
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            
+            # Write file to disk
+            with open(filepath, 'wb') as f:
+                f.write(file_content)
+            
+            print(f"File saved to: {filepath}")
+            print(f"File exists: {os.path.exists(filepath)}")
+            print(f"File size: {os.path.getsize(filepath) if os.path.exists(filepath) else 0} bytes")
             # Analyze the image with Gemini
             img = genai.upload_file(filepath)
             
@@ -101,11 +120,21 @@ def upload_file():
         return jsonify({'error': 'File type not allowed'}), 400
 
 if __name__ == '__main__':
-    # Ensure upload directory exists and has write permissions
-    upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), app.config['UPLOAD_FOLDER'])
-    os.makedirs(upload_dir, exist_ok=True)
-    print(f"Upload directory: {upload_dir}")
-    print(f"Directory exists: {os.path.exists(upload_dir)}")
-    print(f"Directory writable: {os.access(upload_dir, os.W_OK)}")
+    # Print configuration for debugging
+    print("\n=== Application Configuration ===")
+    print(f"Upload folder: {app.config['UPLOAD_FOLDER']}")
+    print(f"Static folder: {app.static_folder}")
+    print(f"Static URL path: {app.static_url_path}")
+    print("==============================\n")
+    
+    # Create a test file to verify write permissions
+    test_file = os.path.join(app.config['UPLOAD_FOLDER'], 'test.txt')
+    try:
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
+        print("✓ Write test successful")
+    except Exception as e:
+        print(f"✗ Write test failed: {e}")
     
     app.run(debug=True, host='0.0.0.0')
