@@ -115,6 +115,12 @@ def process_base64_frame(base64_data):
     label = predict(img)
     
     return {"prediction": label}
+model_path = 'MIT_indoor_vit.onnx'
+classes_path = 'indoorSceneClasses.txt'
+
+    # Load model and classes globally
+classes = load_classes(classes_path)
+sess, input_name = create_session(model_path)
 
 @app.route('/')
 def index():
@@ -166,13 +172,7 @@ def process_webcam():
     return jsonify(result)
 
 if __name__ == '__main__':
-    model_path = 'MIT_indoor_vit.onnx'
-    classes_path = 'indoorSceneClasses.txt'
-
-    # Load model and classes globally
-    classes = load_classes(classes_path)
-    sess, input_name = create_session(model_path)
-
+    
     print(f"Model loaded with {len(classes)} classes")
     # print("Starting server at http://127.0.0.1:5000")
 
