@@ -15,7 +15,7 @@ app.static_folder = 'static'
 app.static_url_path = '/static'
 
 # Configure Gemini API
-genai.configure(api_key='AIzaSyBN_F4aGxokneuCJVK4p8jmZBNq83Iq1NM')
+genai.configure(api_key='YourAPI')
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # Scene classes
