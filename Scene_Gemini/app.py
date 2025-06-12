@@ -25,7 +25,7 @@ SCENE_CLASSES = [
     'closet', 'clothingstore', 'computerroom', 'concert_hall', 'corridor', 'deli', 'dentaloffice',
     'dining_room', 'elevator', 'fastfood_restaurant', 'florist', 'gameroom', 'garage', 'greenhouse',
     'grocerystore', 'gym', 'hairsalon', 'hospitalroom', 'inside_bus', 'inside_subway', 'jewelleryshop',
-    'kindergarden', 'kitchen', 'laboratorywet', 'laundromat', 'library', 'livingroom', 'lobby',
+    'kindergarden', 'kitchen', 'laboratory', 'laundromat', 'library', 'livingroom', 'lobby',
     'locker_room', 'mall', 'meeting_room', 'movietheater', 'museum', 'nursery', 'office',
     'operating_room', 'pantry', 'poolinside', 'prisoncell', 'restaurant', 'restaurant_kitchen',
     'shoeshop', 'stairscase', 'studiomusic', 'subway', 'toystore', 'trainstation', 'tv_studio',

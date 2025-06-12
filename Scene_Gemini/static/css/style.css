@@ -402,7 +402,40 @@ h1 {
     width: 100%;
     padding: 20px 0;
 }
+.upload-again-btn {
+    background-color: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border: none;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    padding: 12px 24px;
+    margin-top: 24px;
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    cursor: pointer;
+    transition: all var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard);
+    box-shadow: var(--md-elevation-level1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
 
+.upload-again-btn:hover {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    box-shadow: var(--md-elevation-level2);
+    transform: translateY(-2px);
+}
+
+.upload-again-btn:active {
+    transform: translateY(0);
+    box-shadow: var(--md-elevation-level1);
+}
+
+.upload-again-btn::before {
+    content: "↻";
+    font-size: 1.2em;
+}
 @keyframes fadeInScale {
     from {
         opacity: 0;

@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewImage = document.getElementById('previewImage');
     const predictionText = document.getElementById('predictionText');
     const loadingIndicator = document.getElementById('loadingIndicator');
-    
+    const uploadAgainBtn = document.getElementById('uploadAgainBtn');
     console.log('Elements found:', {fileInput, uploadArea, resultArea, previewImage, predictionText, loadingIndicator});
 
     // File input change handler
@@ -116,7 +116,10 @@ document.addEventListener('DOMContentLoaded', function() {
     resultArea.addEventListener('click', function() {
         resetUploader();
     });
-    
+    // uploadAgainBtn.addEventListener('click', function(e) {
+    //     e.stopPropagation(); // Prevent event bubbling
+    //     resetUploader();
+    // });
     // Function to reset the upload interface
     function resetUploader() {
         fileInput.value = '';
